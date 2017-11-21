@@ -78,7 +78,7 @@ jhipster:
         #allow-credentials: true
         #max-age: 1800
     mail:
-        from: jhipster@localhost
+        from: lu774374302@qq.com
     swagger:
         default-include-pattern: /api/.*
         title: jhipster API
