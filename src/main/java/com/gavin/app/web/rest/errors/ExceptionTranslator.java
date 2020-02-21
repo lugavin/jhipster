@@ -1,8 +1,8 @@
 package com.gavin.app.web.rest.errors;
 
 import com.gavin.app.web.rest.util.HeaderUtil;
-
 import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -31,6 +31,8 @@ public class ExceptionTranslator implements ProblemHandling {
 
     /**
      * Post-process Problem payload to add the message key for front-end if needed
+     *
+     * @see org.zalando.problem.spring.web.advice.AdviceTrait#create(Throwable, Problem, NativeWebRequest, HttpHeaders)
      */
     @Override
     public ResponseEntity<Problem> process(@Nullable ResponseEntity<Problem> entity, NativeWebRequest request) {
@@ -38,7 +40,7 @@ public class ExceptionTranslator implements ProblemHandling {
             return entity;
         }
         Problem problem = entity.getBody();
-        if (!(problem instanceof ConstraintViolationProblem || problem instanceof DefaultProblem)) {
+        if (!(problem instanceof ConstraintViolationProblem) && !(problem instanceof DefaultProblem)) {
             return entity;
         }
         ProblemBuilder builder = Problem.builder()
@@ -71,7 +73,6 @@ public class ExceptionTranslator implements ProblemHandling {
         List<FieldErrorVM> fieldErrors = result.getFieldErrors().stream()
             .map(f -> new FieldErrorVM(f.getObjectName(), f.getField(), f.getCode()))
             .collect(Collectors.toList());
-
         Problem problem = Problem.builder()
             .withType(ErrorConstants.CONSTRAINT_VIOLATION_TYPE)
             .withTitle("Method argument not valid")

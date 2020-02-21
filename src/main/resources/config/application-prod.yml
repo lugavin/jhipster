@@ -42,7 +42,7 @@ spring:
     mail:
         host: smtp.qq.com
         username: lu774374302@qq.com
-        password: P@ssw0rd # QQ mail auth code
+        password: fbxthbgaymolbegf
         properties:
             mail.smtp.auth: true
             mail.smtp.starttls.enable: true
