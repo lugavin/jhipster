@@ -1,8 +1,6 @@
 package com.gavin.app.web.rest.vm;
 
-import com.gavin.app.config.Constants;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
 /**
@@ -10,13 +8,12 @@ import javax.validation.constraints.Size;
  */
 public class LoginVM {
 
-    @Pattern(regexp = Constants.LOGIN_REGEX)
     @NotNull
     @Size(min = 1, max = 50)
     private String username;
 
     @NotNull
-    @Size(min = ManagedUserVM.PASSWORD_MIN_LENGTH, max = ManagedUserVM.PASSWORD_MAX_LENGTH)
+    @Size(min = 4, max = 100)
     private String password;
 
     private Boolean rememberMe;
@@ -45,6 +42,7 @@ public class LoginVM {
         this.rememberMe = rememberMe;
     }
 
+    // prettier-ignore
     @Override
     public String toString() {
         return "LoginVM{" +

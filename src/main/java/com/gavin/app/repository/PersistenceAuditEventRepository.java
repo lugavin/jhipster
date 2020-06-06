@@ -1,25 +1,25 @@
 package com.gavin.app.repository;
 
 import com.gavin.app.domain.PersistentAuditEvent;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.neo4j.springframework.data.repository.ReactiveNeo4jRepository;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.time.Instant;
-import java.util.List;
 
 /**
- * Spring Data JPA repository for the PersistentAuditEvent entity.
+ * Spring Data Neo4j repository for the {@link PersistentAuditEvent} entity.
  */
-public interface PersistenceAuditEventRepository extends JpaRepository<PersistentAuditEvent, Long> {
+public interface PersistenceAuditEventRepository extends ReactiveNeo4jRepository<PersistentAuditEvent, String> {
 
-    List<PersistentAuditEvent> findByPrincipal(String principal);
+    Flux<PersistentAuditEvent> findByPrincipal(String principal);
 
-    List<PersistentAuditEvent> findByAuditEventDateAfter(Instant after);
+    Flux<PersistentAuditEvent> findAllByAuditEventDateBetween(Instant fromDate, Instant toDate, Pageable pageable);
 
-    List<PersistentAuditEvent> findByPrincipalAndAuditEventDateAfter(String principal, Instant after);
+    Flux<PersistentAuditEvent> findByAuditEventDateBefore(Instant before);
 
-    List<PersistentAuditEvent> findByPrincipalAndAuditEventDateAfterAndAuditEventType(String principle, Instant after, String type);
+    Flux<PersistentAuditEvent> findAllBy(Pageable pageable);
 
-    Page<PersistentAuditEvent> findAllByAuditEventDateBetween(Instant fromDate, Instant toDate, Pageable pageable);
+    Mono<Long> countByAuditEventDateBetween(Instant fromDate, Instant toDate);
 }

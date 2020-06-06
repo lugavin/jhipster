@@ -1,20 +1,22 @@
 package com.gavin.app.web.rest;
 
-import com.gavin.app.security.jwt.JWTConfigurer;
+import com.gavin.app.config.Constants;
+import com.gavin.app.security.jwt.JWTFilter;
 import com.gavin.app.security.jwt.TokenProvider;
+import com.gavin.app.service.AuditEventService;
 import com.gavin.app.web.rest.vm.LoginVM;
 
-import com.codahale.metrics.annotation.Timed;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import javax.validation.Valid;
 
@@ -27,27 +29,46 @@ public class UserJWTController {
 
     private final TokenProvider tokenProvider;
 
-    private final AuthenticationManager authenticationManager;
+    private final ReactiveAuthenticationManager authenticationManager;
 
-    public UserJWTController(TokenProvider tokenProvider, AuthenticationManager authenticationManager) {
+    private final AuditEventService auditEventService;
+
+    public UserJWTController(TokenProvider tokenProvider, ReactiveAuthenticationManager authenticationManager, AuditEventService auditEventService) {
         this.tokenProvider = tokenProvider;
         this.authenticationManager = authenticationManager;
+        this.auditEventService = auditEventService;
     }
 
     @PostMapping("/authenticate")
-    @Timed
-    public ResponseEntity<JWTToken> authorize(@Valid @RequestBody LoginVM loginVM) {
+    public Mono<ResponseEntity<JWTToken>> authorize(@Valid @RequestBody Mono<LoginVM> loginVM) {
+        return loginVM
+            .flatMap(login -> authenticationManager
+                .authenticate(new UsernamePasswordAuthenticationToken(login.getUsername(), login.getPassword()))
+                .onErrorResume(throwable -> onAuthenticationError(login, throwable))
+                .flatMap(auth -> onAuthenticationSuccess(login, auth))
+                .flatMap(auth -> Mono.fromCallable(() -> tokenProvider.createToken(auth, Boolean.TRUE.equals(login.isRememberMe()))))
+            )
+            .map(jwt -> {
+                HttpHeaders httpHeaders = new HttpHeaders();
+                httpHeaders.add(JWTFilter.AUTHORIZATION_HEADER, "Bearer " + jwt);
+                return new ResponseEntity<>(new JWTToken(jwt), httpHeaders, HttpStatus.OK);
+            });
+    }
 
-        UsernamePasswordAuthenticationToken authenticationToken =
-            new UsernamePasswordAuthenticationToken(loginVM.getUsername(), loginVM.getPassword());
+    private Mono<? extends Authentication> onAuthenticationSuccess(LoginVM login, Authentication auth) {
+        return Mono.just(login)
+            .map(LoginVM::getUsername)
+            .filter(username -> !Constants.ANONYMOUS_USER.equals(username))
+            .flatMap(auditEventService::saveAuthenticationSuccess)
+            .thenReturn(auth);
+    }
 
-        Authentication authentication = this.authenticationManager.authenticate(authenticationToken);
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        boolean rememberMe = (loginVM.isRememberMe() == null) ? false : loginVM.isRememberMe();
-        String jwt = tokenProvider.createToken(authentication, rememberMe);
-        HttpHeaders httpHeaders = new HttpHeaders();
-        httpHeaders.add(JWTConfigurer.AUTHORIZATION_HEADER, "Bearer " + jwt);
-        return new ResponseEntity<>(new JWTToken(jwt), httpHeaders, HttpStatus.OK);
+    private Mono<? extends Authentication> onAuthenticationError(LoginVM login, Throwable throwable) {
+        return Mono.just(login)
+            .map(LoginVM::getUsername)
+            .filter(username -> !Constants.ANONYMOUS_USER.equals(username))
+            .flatMap(username -> auditEventService.saveAuthenticationError(username, throwable))
+            .then(Mono.error(throwable));
     }
 
     /**

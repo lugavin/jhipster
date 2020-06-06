@@ -1,0 +1,11 @@
+version: '2'
+services:
+  jhipster-neo4j:
+    image: neo4j:4.0.4
+    # volumes:
+    #     - ~/volumes/jhipster/jhipster/neo4j/:/data
+    environment:
+      - NEO4J_AUTH=none
+    ports:
+      - '7474:7474'
+      - '7687:7687'
